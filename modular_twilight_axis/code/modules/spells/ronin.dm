@@ -75,13 +75,14 @@
 	if(!isliving(user))
 		return
 
-	var/mob/living/L = user
-	var/datum/component/combo_core/ronin/C = L.GetComponent(/datum/component/combo_core/ronin)
+	var/datum/component/combo_core/ronin/C = user.GetComponent(/datum/component/combo_core/ronin)
 	if(!C)
 		return
 
-	if(C.ronin_state == RONIN_DRAWN)
-		C.ReturnToSheath()
+	C.UpdateActiveBlade()
+	if(C.active_blade && (C.active_blade in C.bound_blades))
+		if(C.ReturnToSheath())
+			to_chat(user, span_notice("You calmly return your blade to its scabbard."))
 		return
 
 	if(C.in_counter_stance)
@@ -90,6 +91,7 @@
 		return
 
 	C.EnterCounterStance()
+	to_chat(user, span_notice("You assume a still, deadly stance."))
 
 /obj/effect/proc_holder/spell/self/ronin/bind_blade
 	name = "Bind Blade"
@@ -97,10 +99,9 @@
 
 /obj/effect/proc_holder/spell/self/ronin/bind_blade/cast(list/targets, mob/living/user)
 	var/obj/item/rogueweapon/W = user.get_active_held_item()
-	if(!istype(W))
-		to_chat(user, span_warning("I must hold a blade."))
+	if(!W)
+		to_chat(user, span_warning("You must hold a blade."))
 		return
-
 	var/datum/component/combo_core/ronin/C = user.GetComponent(/datum/component/combo_core/ronin)
 	if(C)
 		C.BindBlade(W)

@@ -1,7 +1,17 @@
-/obj/item/rogueweapon
-	var/ronin_stacks = 0
-	var/ronin_gate_open_until = 0
-	var/ronin_prepared_combo
+#define RONIN_STACK_TICK             (1 SECONDS)
+#define RONIN_MAX_STACKS_NORMAL      5
+#define RONIN_MAX_STACKS_OVERDRIVE   20
+#define RONIN_OVERDRIVE_DURATION     (5 SECONDS)
+#define RONIN_FORCE_PER_STACK        0.02
+
+#define RONIN_GLOW_BOUND_FILTER    "ronin_bound_glow"
+#define RONIN_GLOW_PREP_FILTER     "ronin_prepared_glow"
+
+#define RONIN_GLOW_BOUND_COLOR     "#FFD54A"  // жёлтый
+#define RONIN_GLOW_PREP_COLOR      "#FF3B3B"  // красный
+
+#define RONIN_GLOW_SIZE_BOUND      1.5
+#define RONIN_GLOW_SIZE_PREP       2
 
 /proc/ronin_on_dodge_success(mob/living/defender)
 	if(!isliving(defender))
@@ -12,62 +22,99 @@
 	parent_type = /datum/component/combo_core
 	dupe_mode = COMPONENT_DUPE_UNIQUE
 
-	/// FSM
-	var/ronin_state = RONIN_SHEATHED_IDLE
+	// stacks live here
+	var/ronin_stacks = 0
+	var/next_stack_tick = 0
+	var/overdrive_until = 0
 
-	/// counter stance
+	// binding
+	var/list/bound_blades = list()
+
+	// cached held blade
+	var/obj/item/rogueweapon/active_blade = null
+
+	// minor: input подтверждается только успешным ударом
+	var/pending_hit_input = null
+
+	// cache base force for +2% per stack safely
+	var/list/base_force_cache = list() // key: blade, value: base force
+
+	// counter stance
 	var/in_counter_stance = FALSE
 	var/counter_expires_at = 0
 
-	/// текущий клинок в руках
-	var/obj/item/rogueweapon/active_blade
-
-	/// привязанные клинки (FIFO, максимум 2)
-	var/list/bound_blades = list()
-
-	/// клинок с заготовленным elder-комбо
-	var/obj/item/rogueweapon/combo_blade
-
-	/// ожидающее minor-комбо
-	var/pending_minor_combo = null
-
-	/// spells
+	// spells
 	var/list/granted_spells = list()
 	var/spells_granted = FALSE
+
+	var/obj/item/rogueweapon/listened_blade = null
+
 
 // ----------------------------------------------------
 // INIT / DESTROY
 // ----------------------------------------------------
 
 /datum/component/combo_core/ronin/Initialize(_combo_window, _max_history)
-	. = ..(_combo_window || 6 SECONDS, _max_history || 3)
+	. = ..(_combo_window, _max_history)
 	if(. == COMPONENT_INCOMPATIBLE)
 		return .
 
-	owner = parent
+	START_PROCESSING(SSprocessing, src)
 
 	RegisterSignal(owner, COMSIG_ATTACK_TRY_CONSUME, PROC_REF(_sig_try_consume), override = TRUE)
-	RegisterSignal(owner, COMSIG_LIVING_TAKE_DAMAGE, PROC_REF(_sig_take_damage), override = TRUE)
-	RegisterSignal(owner, COMSIG_MOB_DODGE_SUCCESS, PROC_REF(_sig_dodge_success), override = TRUE)
 	RegisterSignal(owner, COMSIG_COMBO_CORE_REGISTER_INPUT, PROC_REF(_sig_register_input), override = TRUE)
+	RegisterSignal(owner, COMSIG_MOB_DODGE_SUCCESS, PROC_REF(_sig_dodge_success), override = TRUE)
 
 	GrantSpells()
 	return .
 
 /datum/component/combo_core/ronin/Destroy(force)
+	STOP_PROCESSING(SSprocessing, src)
+
+	if(bound_blades?.len)
+		for(var/obj/item/rogueweapon/W as anything in bound_blades)
+			// снять глоу
+			if(W && !QDELETED(W) && hascall(W, "remove_filter"))
+				call(W, "remove_filter")(RONIN_GLOW_BOUND_FILTER)
+				call(W, "remove_filter")(RONIN_GLOW_PREP_FILTER)
+
+	if(listened_blade && !QDELETED(listened_blade))
+		UnregisterSignal(listened_blade, COMSIG_ITEM_ATTACK_SUCCESS)
+	
 	if(owner)
 		UnregisterSignal(owner, COMSIG_ATTACK_TRY_CONSUME)
-		UnregisterSignal(owner, COMSIG_LIVING_TAKE_DAMAGE)
-		UnregisterSignal(owner, COMSIG_MOB_DODGE_SUCCESS)
 		UnregisterSignal(owner, COMSIG_COMBO_CORE_REGISTER_INPUT)
-
+		UnregisterSignal(owner, COMSIG_MOB_DODGE_SUCCESS)
 		RevokeSpells()
 
+	RestoreAllBoundForces()
+
 	owner = null
+	listened_blade = null
 	active_blade = null
-	combo_blade = null
+	pending_hit_input = null
 	bound_blades.Cut()
+	base_force_cache = null
 	return ..()
+
+// ----------------------------------------------------
+// PROCESSING: stack gain + force update
+// ----------------------------------------------------
+
+/datum/component/combo_core/ronin/process()
+	if(world.time < next_stack_tick)
+		return
+
+	next_stack_tick = world.time + RONIN_STACK_TICK
+
+	var/overdrive = (world.time < overdrive_until)
+	if(owner.cmode)
+		if(overdrive)
+			ronin_stacks = min(ronin_stacks + 2, RONIN_MAX_STACKS_OVERDRIVE)
+		else
+			ronin_stacks = min(ronin_stacks + 1, RONIN_MAX_STACKS_NORMAL)
+
+	ApplyBoundForceMultiplier()
 
 // ----------------------------------------------------
 // SPELLS
@@ -96,18 +143,65 @@
 	spells_granted = TRUE
 
 /datum/component/combo_core/ronin/proc/RevokeSpells()
-	if(!owner || !granted_spells.len)
+	if(!owner)
+		return
+	if(!granted_spells || !granted_spells.len)
+		spells_granted = FALSE
 		return
 
 	if(owner.mind)
-		for(var/obj/effect/proc_holder/spell/S in granted_spells)
-			owner.mind.RemoveSpell(S)
+		for(var/obj/effect/proc_holder/spell/S as anything in granted_spells)
+			if(S)
+				owner.mind.RemoveSpell(S)
 	else
-		for(var/obj/effect/proc_holder/spell/S in granted_spells)
-			qdel(S)
+		for(var/obj/effect/proc_holder/spell/S as anything in granted_spells)
+			if(S)
+				qdel(S)
 
 	granted_spells.Cut()
 	spells_granted = FALSE
+
+/datum/component/combo_core/ronin/proc/_ronin_apply_weapon_glow(obj/item/rogueweapon/W)
+	if(!W || QDELETED(W))
+		return
+
+	var/is_prepared = !!W.ronin_prepared_combo
+	var/is_bound = (W in bound_blades)
+
+	// снять старые
+	W.remove_filter(RONIN_GLOW_BOUND_FILTER)
+	W.remove_filter(RONIN_GLOW_PREP_FILTER)
+
+	// красный > жёлтый
+	if(is_prepared)
+		W.add_filter(
+			RONIN_GLOW_PREP_FILTER,
+			1,
+			list(
+				"type"="drop_shadow",
+				"x"=0,
+				"y"=0,
+				"size"=RONIN_GLOW_SIZE_PREP,
+				"color"=RONIN_GLOW_PREP_COLOR
+			)
+		)
+	else if(is_bound)
+		W.add_filter(
+			RONIN_GLOW_BOUND_FILTER,
+			1,
+			list(
+				"type"="drop_shadow",
+				"x"=0,
+				"y"=0,
+				"size"=RONIN_GLOW_SIZE_BOUND,
+				"color"=RONIN_GLOW_BOUND_COLOR
+			)
+		)
+/datum/component/combo_core/ronin/proc/_ronin_refresh_all_weapon_glows()
+	if(!bound_blades || !bound_blades.len)
+		return
+	for(var/obj/item/rogueweapon/W as anything in bound_blades)
+		_ronin_apply_weapon_glow(W)
 
 // ----------------------------------------------------
 // COMBO RULES
@@ -120,114 +214,176 @@
 	RegisterRule("tanuki",  list(1,1,2), 30, PROC_REF(_cb_combo))
 
 /datum/component/combo_core/ronin/proc/_cb_combo(rule_id, mob/living/target, zone)
-	if(!bound_blades.len)
-		return FALSE
-
-	// клинки в ножнах → elder
+	// если клинок НЕ в руке (или не bound) — это elder-запоминание
 	if(!HasDrawnBoundBlade())
-		return PrepareElderCombo(rule_id)
+		return StoreElderCombo(rule_id)
 
-	// клинки в руках → minor
-	return QueueMinorCombo(rule_id)
+	// если клинок в руке — это minor-комбо (срабатывает сразу после того удара,
+	// который подтвердил последний ввод)
+	return ExecuteMinorCombo(rule_id, target, zone)
 
-// ----------------------------------------------------
-// ELDER / MINOR
-// ----------------------------------------------------
-
-/datum/component/combo_core/ronin/proc/PrepareElderCombo(rule_id)
-	var/obj/item/rogueweapon/W = bound_blades[bound_blades.len]
-	if(!W || W.ronin_prepared_combo)
-		return FALSE
-
-	W.ronin_prepared_combo = rule_id
-	combo_blade = W
-
-	to_chat(owner, span_notice("You prepare a deadly technique."))
-	return TRUE
-
-/datum/component/combo_core/ronin/proc/QueueMinorCombo(rule_id)
-	if(pending_minor_combo)
-		return FALSE
-
-	pending_minor_combo = rule_id
-	return TRUE
-
-/datum/component/combo_core/ronin/proc/ExecuteMinorCombo(rule_id, mob/living/target, zone)
-	if(!combo_blade || !(combo_blade in bound_blades))
-		return FALSE
-
-	var/power = max(1, combo_blade.ronin_stacks)
-
-	target.OffBalance(1 SECONDS + power * 0.3 SECONDS)
-
-	combo_blade.ronin_stacks = 0
-	combo_blade.ronin_prepared_combo = null
-	combo_blade = null
-	pending_minor_combo = null
-
-	owner.visible_message(
-		span_danger("[owner] unleashes a precise ronin technique!"),
-		span_notice("You execute your technique.")
-	)
-
-	return TRUE
 
 // ----------------------------------------------------
-// STATE / HELPERS
+// STACKS + FORCE
+// ----------------------------------------------------
+
+/datum/component/combo_core/ronin/proc/GetStackMultiplier()
+	return 1 + (ronin_stacks * RONIN_FORCE_PER_STACK)
+
+/datum/component/combo_core/ronin/proc/CacheBaseForce(obj/item/rogueweapon/W)
+	if(!W)
+		return
+	if(!islist(base_force_cache))
+		base_force_cache = list()
+	if(isnull(base_force_cache[W]))
+		base_force_cache[W] = W.force
+
+/datum/component/combo_core/ronin/proc/ApplyBoundForceMultiplier()
+	if(!bound_blades || !bound_blades.len)
+		return
+
+	var/mult = GetStackMultiplier()
+
+	for(var/obj/item/rogueweapon/W as anything in bound_blades)
+		if(!W || QDELETED(W))
+			continue
+		CacheBaseForce(W)
+		var/base = base_force_cache[W]
+		if(isnum(base))
+			W.force = round(base * mult, 1)
+
+/datum/component/combo_core/ronin/proc/RestoreAllBoundForces()
+	if(!islist(base_force_cache))
+		return
+	for(var/obj/item/rogueweapon/W as anything in base_force_cache)
+		if(!W || QDELETED(W))
+			continue
+		var/base = base_force_cache[W]
+		if(isnum(base))
+			W.force = base
+
+
+// ----------------------------------------------------
+// ACTIVE BLADE
 // ----------------------------------------------------
 
 /datum/component/combo_core/ronin/proc/UpdateActiveBlade()
+	active_blade = null
+	if(!owner)
+		return
+
 	var/obj/item/I = owner.get_active_held_item()
 	if(istype(I, /obj/item/rogueweapon))
 		active_blade = I
-	else
-		active_blade = null
 
 /datum/component/combo_core/ronin/proc/HasDrawnBoundBlade()
 	UpdateActiveBlade()
 	return (active_blade && (active_blade in bound_blades))
 
+
 // ----------------------------------------------------
-// BINDING
+// ELDER STORAGE (cycle between sheathed bound blades)
 // ----------------------------------------------------
 
-/datum/component/combo_core/ronin/proc/BindBlade(obj/item/rogueweapon/W)
+/datum/component/combo_core/ronin/proc/GetNextElderBlade()
+	if(!bound_blades || !bound_blades.len)
+		return null
+
+	var/obj/item/rogueweapon/oldest = null
+	var/oldest_time = INFINITY
+
+	for(var/obj/item/rogueweapon/W as anything in bound_blades)
+		if(!W || QDELETED(W))
+			continue
+
+		// пишем elder только если клинок реально в ножнах
+		if(!istype(W.loc, /obj/item/rogueweapon/scabbard))
+			continue
+
+		// свободный клинок — берём сразу
+		if(!W.ronin_prepared_combo)
+			return W
+
+		// иначе: выбираем самый старый для перезаписи (и будет “по кругу”)
+		if(W.ronin_prepared_at < oldest_time)
+			oldest_time = W.ronin_prepared_at
+			oldest = W
+
+	return oldest
+
+/datum/component/combo_core/ronin/proc/StoreElderCombo(rule_id)
+	if(!owner || !rule_id)
+		return FALSE
+
+	var/obj/item/rogueweapon/W = GetNextElderBlade()
 	if(!W)
 		return FALSE
 
-	if(W in bound_blades)
-		bound_blades -= W
+	W.ronin_prepared_combo = rule_id
+	W.ronin_prepared_at = world.time
+	_ronin_apply_weapon_glow(W)
 
-	if(bound_blades.len >= 2)
-		bound_blades.Cut(1,2)
-
-	bound_blades += W
-
-	to_chat(owner, span_notice("You bind [W] to your path."))
+	to_chat(owner, span_notice("Elder prepared: [rule_id] -> [W]."))
 	return TRUE
 
+
 // ----------------------------------------------------
-// STACKS
+// MINOR / ELDER EXECUTION
 // ----------------------------------------------------
 
-/datum/component/combo_core/ronin/proc/TryGainStack()
-	if(active_blade || !combo_blade)
+/datum/component/combo_core/ronin/proc/ExecuteMinorCombo(rule_id, mob/living/target, zone)
+	if(!owner || !target || !rule_id)
+		return FALSE
+
+	var/power = max(1, ronin_stacks)
+	var/dur = 1 SECONDS + (power * 0.3 SECONDS)
+
+	switch(rule_id)
+		if("ryu")
+			return ComboRyuMinor(target, zone)
+		if("kitsune")
+			target.Slowdown(2 + power * 0.1)
+		if("tengu")
+			target.Stun(0.5 SECONDS + power * 0.1 SECONDS)
+		if("tanuki")
+			target.Immobilize(0.5 SECONDS + power * 0.1 SECONDS)
+
+	to_chat(owner, span_notice("MINOR COMBO FIRED: [rule_id] (stacks=[ronin_stacks]) on [target]."))
+	return TRUE
+
+/datum/component/combo_core/ronin/proc/ExecuteElderCombo(rule_id, mob/living/target, zone)
+	if(!owner || !rule_id)
 		return
 
-	var/max = (world.time < combo_blade.ronin_gate_open_until) ? RONIN_MAX_STACKS_FULL : RONIN_MAX_STACKS_GATED
-	if(combo_blade.ronin_stacks < max)
-		combo_blade.ronin_stacks++
+	var/power = max(1, ronin_stacks)
+	var/dur = 1.5 SECONDS + (power * 0.4 SECONDS)
 
-/datum/component/combo_core/ronin/proc/ConsumeAllStacks()
-	if(combo_blade)
-		combo_blade.ronin_stacks = 0
+	switch(rule_id)
+		if("ryu")
+			ComboRyuElder(target, zone)
+			return
+		if("kitsune")
+			if(target) target.Stun(1 SECONDS + power * 0.1 SECONDS)
+		if("tengu")
+			if(target) target.Immobilize(1 SECONDS + power * 0.1 SECONDS)
+		if("tanuki")
+			if(target) target.Slowdown(3 + power * 0.15)
+
+	owner.visible_message(
+		span_danger("[owner] unleashes a devastating ronin technique!"),
+		span_notice("Your prepared technique is released!"),
+	)
+
 
 // ----------------------------------------------------
-// COUNTER
+// COUNTER STANCE
 // ----------------------------------------------------
 
 /datum/component/combo_core/ronin/proc/EnterCounterStance()
-	if(active_blade || in_counter_stance)
+	if(in_counter_stance)
+		return
+	UpdateActiveBlade()
+	if(active_blade) // если меч в руке — стойка не нужна
 		return
 
 	in_counter_stance = TRUE
@@ -241,64 +397,104 @@
 	if(in_counter_stance && world.time >= counter_expires_at)
 		ExitCounterStance()
 
+
 // ----------------------------------------------------
 // SIGNALS
 // ----------------------------------------------------
 
 /datum/component/combo_core/ronin/proc/_sig_try_consume(datum/source, atom/target_atom, zone)
 	SIGNAL_HANDLER
-	UpdateActiveBlade()
 
-	if(!pending_minor_combo || !active_blade)
-		return 0
-
-	var/mob/living/target = ismob(target_atom) ? target_atom : null
-	if(target)
-		ExecuteMinorCombo(pending_minor_combo, target, zone)
+	// всегда -1 стак на попытку атаки
+	if(ronin_stacks > 0)
+		ronin_stacks--
+		ApplyBoundForceMultiplier()
 
 	return 0
 
-/datum/component/combo_core/ronin/proc/_sig_take_damage(datum/source, damage, damagetype, zone)
+/datum/component/combo_core/ronin/proc/_sig_item_attack_success(datum/source, mob/living/target, mob/living/user)
 	SIGNAL_HANDLER
-	CheckCounterExpire()
+	if(user != owner)
+		return
 
-	if(!in_counter_stance || damagetype != BRUTE)
-		return 0
+	// успешный удар включает overdrive на 5 секунд
+	overdrive_until = max(overdrive_until, world.time + RONIN_OVERDRIVE_DURATION)
 
-	QuickDraw(TRUE)
-	ReturnToSheath()
-	ExitCounterStance()
-	return 0
+	// minor: подтвердить ввод и засчитать в history
+	if(pending_hit_input)
+		to_chat(owner, span_notice("Minor confirmed on hit: [pending_hit_input]."))
+		RegisterInput(pending_hit_input, target, user.zone_selected)
+		pending_hit_input = null
 
-/datum/component/combo_core/ronin/proc/_sig_dodge_success(datum/source)
-	SIGNAL_HANDLER
-	if(combo_blade && world.time < combo_blade.ronin_gate_open_until)
-		TryGainStack()
-	return 0
+	// elder: если записано на клинке — сработать и очистить
+	// source == listened_blade == active_blade (обычно)
+	var/obj/item/rogueweapon/W = source
+	if(istype(W) && W.ronin_prepared_combo)
+		var/rule_id = W.ronin_prepared_combo
+		W.ronin_prepared_combo = null
+		W.ronin_prepared_at = 0
+		_ronin_apply_weapon_glow(W)
+		to_chat(owner, span_danger("ELDER COMBO RELEASED: [rule_id] (stacks=[ronin_stacks])!"))
+		ExecuteElderCombo(rule_id, target, user.zone_selected)
+
+	
 
 /datum/component/combo_core/ronin/_sig_register_input(datum/source, skill_id, mob/living/target, zone)
 	SIGNAL_HANDLER
-	CheckCounterExpire()
-	return ..()
+	if(!owner || !skill_id)
+		return 0
 
-// ----------------------------------------------------
-// QUICK DRAW / SHEATH (BOUND-BLADES ONLY)
-// ----------------------------------------------------
+	// если bound клинок в руке — ввод ждёт успешного удара
+	if(HasDrawnBoundBlade())
+		pending_hit_input = skill_id
+		to_chat(owner, span_notice("Minor queued: [skill_id] (stacks=[ronin_stacks]). Hit to confirm."))
+		return COMPONENT_COMBO_ACCEPTED
+
+	// иначе — сразу регистрируем (elder-набор)
+	var/fired = RegisterInput(skill_id, null, zone)
+	return COMPONENT_COMBO_ACCEPTED | (fired ? COMPONENT_COMBO_FIRED : 0)
+
+/// dodge в стойке: если меч не вынут — quickdraw + хук "мгновенный удар"
+/datum/component/combo_core/ronin/proc/_sig_dodge_success(datum/source)
+	SIGNAL_HANDLER
+	CheckCounterExpire()
+
+	if(!in_counter_stance)
+		return
+
+	UpdateActiveBlade()
+	if(!active_blade)
+		if(QuickDraw(FALSE))
+			TryCounterInstantStrike()
+
+	in_counter_stance = FALSE
+
+/datum/component/combo_core/ronin/proc/UpdateAttackSuccessListener()
+	// снимаем старую подписку
+	if(listened_blade && !QDELETED(listened_blade))
+		UnregisterSignal(listened_blade, COMSIG_ITEM_ATTACK_SUCCESS)
+	listened_blade = null
+
+	// вешаем новую, если в руке bound клинок
+	UpdateActiveBlade()
+	if(active_blade && (active_blade in bound_blades))
+		listened_blade = active_blade
+		RegisterSignal(listened_blade, COMSIG_ITEM_ATTACK_SUCCESS, PROC_REF(_sig_item_attack_success))
+
+/datum/component/combo_core/ronin/proc/TryCounterInstantStrike()
+	// ХУК: тут делай авто-удар тем пайплайном, который у вас принят.
+	return
 
 /datum/component/combo_core/ronin/proc/QuickDraw(consume_stacks = FALSE)
 	if(!owner || !bound_blades.len)
 		return FALSE
 
-	// берём самый "свежий" привязанный клинок
 	var/obj/item/rogueweapon/W = bound_blades[bound_blades.len]
 	if(!W)
 		return FALSE
-
-	// должен быть в ножнах, иначе это не "quick draw"
 	if(!istype(W.loc, /obj/item/rogueweapon/scabbard))
 		return FALSE
 
-	// нужна свободная рука
 	var/free_hand = 0
 	if(owner.get_item_for_held_index(1) == null)
 		free_hand = 1
@@ -309,56 +505,46 @@
 
 	var/obj/item/rogueweapon/scabbard/S = W.loc
 
-	// --- ИНСТАНТНЫЙ ВЫХВАТ ---
-	// 1) освобождаем ножны
 	if(S.sheathed == W)
 		S.sheathed = null
 	S.update_icon(owner)
 
-	// 2) переносим клинок к мобу и пихаем в руку
 	W.forceMove(owner.loc)
 	W.pickup(owner)
 	owner.put_in_hand(W, free_hand)
 
 	active_blade = W
-	ronin_state = RONIN_DRAWN
+	UpdateAttackSuccessListener()
 
-	// 3) контра-сжигание стаков
+	// consume_stacks теперь означает: обнулить СТАКИ РОНИНА, а не оружия
 	if(consume_stacks)
-		W.ronin_stacks = 0
+		ronin_stacks = 0
+		ApplyBoundForceMultiplier()
 
-	// 4) если на этом клинке было elder-комбо — применяем/сбрасываем
-	if(W.ronin_prepared_combo)
-		// тут можно сделать реальный "удар на выхвате" позже,
-		// сейчас просто считаем что техника "сработала"
-		W.ronin_prepared_combo = null
-		if(combo_blade == W)
-			combo_blade = null
+	// elder на выхвате по твоему описанию НЕ обязан сразу срабатывать,
+	// но если хочешь "сбрасывать" — можешь сбросить тут:
+	// (я бы не сбрасывал, пусть сработает на следующем успешном ударе)
 
 	return TRUE
-
 
 /datum/component/combo_core/ronin/proc/ReturnToSheath()
 	if(!owner)
 		return FALSE
 
 	UpdateActiveBlade()
+	UpdateAttackSuccessListener()
 	if(!active_blade)
 		return FALSE
 
-	// ищем первую подходящую ПУСТУЮ ножну в инвентаре
 	var/obj/item/rogueweapon/scabbard/S = null
 	for(var/obj/item/rogueweapon/scabbard/scab in owner.contents)
-		// weapon_check уже проверяет занятость + валидность
 		if(scab.weapon_check(owner, active_blade))
 			S = scab
 			break
 
-	// ножен нет -> эстетика, ручками
 	if(!S)
 		return FALSE
 
-	// убрать из рук корректно
 	if(active_blade.loc == owner)
 		owner.dropItemToGround(active_blade)
 
@@ -367,5 +553,94 @@
 	S.update_icon(owner)
 
 	active_blade = null
-	ronin_state = RONIN_SHEATHED_IDLE
+	return TRUE
+
+/datum/component/combo_core/ronin/proc/BindBlade(obj/item/rogueweapon/W)
+	if(!owner || !W)
+		return FALSE
+
+	if(W in bound_blades)
+		bound_blades -= W
+
+	if(bound_blades.len >= 2)
+		var/obj/item/rogueweapon/old = bound_blades[1]
+		bound_blades.Cut(1, 2)
+		if(old)
+			RestoreOneForce(old)
+
+	bound_blades += W
+	_ronin_apply_weapon_glow(W)
+	CacheBaseForce(W)
+	ApplyBoundForceMultiplier()
+	UpdateAttackSuccessListener()
+
+	to_chat(owner, span_notice("You bind [W] to your path."))
+	return TRUE
+
+/datum/component/combo_core/ronin/proc/RestoreOneForce(obj/item/rogueweapon/W)
+	if(!W || !islist(base_force_cache))
+		return
+	if(isnull(base_force_cache[W]))
+		return
+	var/base = base_force_cache[W]
+	if(isnum(base))
+		W.force = base
+	base_force_cache -= W
+
+/datum/component/combo_core/ronin/proc/ShowMinorComboIcon(mob/living/target, rule_id)
+	if(!target || !rule_id)
+		return
+
+	//var/icon_file = 'modular_twilight_axis/icons/roguetown/misc/roninspells.dmi'
+	var/icon_state = null
+
+	switch(rule_id)
+		if("ryu") icon_state = "ronin_minor_ryu"
+		// позже добавишь kitsune/tengu/tanuki
+
+	if(!icon_state)
+		return
+
+	var/dur = 0.7 SECONDS
+	//target.play_overhead_indicator_flick(icon_file, icon_state, dur, ABOVE_MOB_LAYER + 0.3, null, 16, 0)
+
+/datum/component/combo_core/ronin/proc/ComboRyuMinor(mob/living/target, zone)
+	if(!owner || !target)
+		return FALSE
+
+	var/power = max(1, ronin_stacks)
+
+	// кровоток: стаки и длительность зависят от power
+	var/bleed_stacks = clamp(round(power * 0.35), 1, 6)
+	var/bleed_dur = 4 SECONDS + (power * 0.2 SECONDS)
+
+	target.apply_status_effect(/datum/status_effect/debuff/ronin_ryu_bleed, bleed_stacks, bleed_dur)
+
+	ShowMinorComboIcon(target, "ryu")
+
+	owner.visible_message(
+		span_danger("[owner] carves a precise bleeding cut!"),
+		span_notice("You land Ryu—blood begins to flow."),
+	)
+
+	return TRUE
+
+/datum/component/combo_core/ronin/proc/ComboRyuElder(mob/living/target, zone)
+	if(!owner)
+		return FALSE
+
+	var/power = max(1, ronin_stacks)
+
+	// поджог: чем больше power, тем больше стаков огня
+	// это использует ваши стандартные adjust_fire_stacks/ignite_mob из кода.
+	if(target)
+		var/fire = clamp(round(2 + power * 0.35), 2, 10)
+		target.adjust_fire_stacks(fire)
+		target.ignite_mob()
+
+	owner.visible_message(
+		span_danger("[owner]'s elder cut blooms into flame!"),
+		span_notice("You release Elder Ryu—fire erupts."),
+	)
+
 	return TRUE
