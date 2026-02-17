@@ -336,16 +336,23 @@
 /obj/item/rogueweapon/tongs/attack_self(mob/user)
 	if(hingot)
 		if(isturf(user.loc))
-			hingot.forceMove(get_turf(user))
+			var/turf/T = get_turf(user)
+			if(!T)
+				T = get_turf(src)
+			if(T)
+				hingot.forceMove(T)
 			hingot = null
 			hott = FALSE
 			update_icon()
-
+			
 /obj/item/rogueweapon/tongs/dropped()
 	. = ..()
-	if(hingot)
-		hingot.forceMove(get_turf(src))
-		hingot = null
+	var/turf/T = get_turf(src)
+	if(!T)
+		T = get_turf(usr)
+	if(T)
+		hingot.forceMove(T)
+	hingot = null
 	hott = FALSE
 	update_icon()
 
