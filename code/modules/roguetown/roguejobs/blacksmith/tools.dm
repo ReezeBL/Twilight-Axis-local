@@ -2,7 +2,7 @@
 /obj/item/rogueweapon/hammer
 	force = 21
 	possible_item_intents = list(/datum/intent/mace/strike, /datum/intent/mace/smash)
-	name = "template hammer"
+	name = "hammer"
 	desc = "If you see this - scream, cry, piss, run, shit yourself, then report it to a dev. Shouldn't be here."
 	icon_state = "hammer"
 	icon = 'icons/roguetown/weapons/tools.dmi'
@@ -336,23 +336,16 @@
 /obj/item/rogueweapon/tongs/attack_self(mob/user)
 	if(hingot)
 		if(isturf(user.loc))
-			var/turf/T = get_turf(user)
-			if(!T)
-				T = get_turf(src)
-			if(T)
-				hingot.forceMove(T)
+			hingot.forceMove(get_turf(user))
 			hingot = null
 			hott = FALSE
 			update_icon()
-			
+
 /obj/item/rogueweapon/tongs/dropped()
 	. = ..()
-	var/turf/T = get_turf(src)
-	if(!T)
-		T = get_turf(usr)
-	if(T)
-		hingot.forceMove(T)
-	hingot = null
+	if(hingot)
+		hingot.forceMove(get_turf(src))
+		hingot = null
 	hott = FALSE
 	update_icon()
 
