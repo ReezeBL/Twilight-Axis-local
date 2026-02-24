@@ -7,8 +7,8 @@
 #define RONIN_GLOW_BOUND_FILTER    "ronin_bound_glow"
 #define RONIN_GLOW_PREP_FILTER     "ronin_prepared_glow"
 
-#define RONIN_GLOW_BOUND_COLOR     "#FFD54A"  // жёлтый
-#define RONIN_GLOW_PREP_COLOR      "#FF3B3B"  // красный
+#define RONIN_GLOW_BOUND_COLOR     "#FFD54A"
+#define RONIN_GLOW_PREP_COLOR      "#FF3B3B"
 
 #define RONIN_GLOW_SIZE_BOUND      1.5
 #define RONIN_GLOW_SIZE_PREP       2
@@ -21,30 +21,21 @@
 /datum/component/combo_core/ronin
 	parent_type = /datum/component/combo_core
 	dupe_mode = COMPONENT_DUPE_UNIQUE
-
-	// stacks live here
 	var/ronin_stacks = 0
 	var/next_stack_tick = 0
 	var/overdrive_until = 0
-
-	// binding
 	var/list/bound_blades = list()
 
-	// cached held blade
 	var/obj/item/rogueweapon/active_blade = null
 
-	// minor: input подтверждается только успешным ударом
 	var/pending_hit_input = null
 
-	// cache base force for +2% per stack safely
 	var/list/base_force_cache = list()
 	var/list/base_ap_cache = list()
 
-	// counter stance
 	var/in_counter_stance = FALSE
 	var/counter_expires_at = 0
 
-	// spells
 	var/list/granted_spells = list()
 	var/spells_granted = FALSE
 
@@ -52,12 +43,7 @@
 
 	/// Tanuki (minor): +4 PER на 4 успешных удара
 	var/tanuki_per_hits_left = 0
-
-	/// Tanuki (elder): riposte triggers on 4th successful hit
 	var/elder_tanuki_riposte_hits_left = 0
-// ----------------------------------------------------
-// INIT / DESTROY
-// ----------------------------------------------------
 
 /datum/component/combo_core/ronin/Initialize(_combo_window, _max_history)
 	. = ..(_combo_window, _max_history)
@@ -102,10 +88,6 @@
 	base_force_cache = null
 	return ..()
 
-// ----------------------------------------------------
-// PROCESSING: stack gain + force update
-// ----------------------------------------------------
-
 /datum/component/combo_core/ronin/process()
 	if(world.time < next_stack_tick)
 		return
@@ -120,10 +102,6 @@
 			ronin_stacks = min(ronin_stacks + 1, RONIN_MAX_STACKS_NORMAL)
 
 	ApplyBoundForceMultiplier()
-
-// ----------------------------------------------------
-// SPELLS
-// ----------------------------------------------------
 
 /datum/component/combo_core/ronin/proc/GrantSpells()
 	if(spells_granted || !owner?.mind)
@@ -172,12 +150,8 @@
 
 	var/is_prepared = !!W.ronin_prepared_combo
 	var/is_bound = (W in bound_blades)
-
-	// снять старые
 	W.remove_filter(RONIN_GLOW_BOUND_FILTER)
 	W.remove_filter(RONIN_GLOW_PREP_FILTER)
-
-	// красный > жёлтый
 	if(is_prepared)
 		W.add_filter(
 			RONIN_GLOW_PREP_FILTER,
@@ -208,10 +182,6 @@
 	for(var/obj/item/rogueweapon/W as anything in bound_blades)
 		_ronin_apply_weapon_glow(W)
 
-// ----------------------------------------------------
-// COMBO RULES
-// ----------------------------------------------------
-
 /datum/component/combo_core/ronin/DefineRules()
 	RegisterRule("ryu",     list(1,2,3), 50, PROC_REF(_cb_combo))
 	RegisterRule("kitsune", list(2,1,3), 40, PROC_REF(_cb_combo))
@@ -219,24 +189,15 @@
 	RegisterRule("tanuki",  list(1,1,2), 30, PROC_REF(_cb_combo))
 
 /datum/component/combo_core/ronin/proc/_cb_combo(rule_id, mob/living/target, zone)
-	// если клинок НЕ в руке (или не bound) — это elder-запоминание
 	if(!HasDrawnBoundBlade())
 		return StoreElderCombo(rule_id)
 
-	// если клинок в руке — это minor-комбо (срабатывает сразу после того удара,
-	// который подтвердил последний ввод)
 	return ExecuteMinorCombo(rule_id, target, zone)
-
-
-// ----------------------------------------------------
-// STACKS + FORCE
-// ----------------------------------------------------
 
 #define RONIN_TANUKI_PER_BONUS 4
 #define RONIN_TANUKI_PER_HITS  4
 
 /datum/component/combo_core/ronin/proc/_GetBladeForce()
-	// Берём текущую силу клинка (у тебя она уже бафается через стеки в ApplyBoundForceMultiplier)
 	UpdateActiveBlade()
 	if(active_blade)
 		return max(0, active_blade.force)
@@ -274,26 +235,18 @@
 	if(force <= 0)
 		return
 	var/burn = max(1, round(force * mult))
-
-	// /tg usually has apply_damage(); if your fork differs – swap this hook.
 	if(hascall(target, "apply_damage"))
 		target.apply_damage(burn, BURN, zone)
 	else
-		// fallback (less correct, but безопасно)
 		if(hascall(target, "adjustFireLoss"))
 			target.adjustFireLoss(burn)
 
 /datum/component/combo_core/ronin/proc/_ApplyBleed(mob/living/target, severity = 4)
 	if(!target)
 		return
-	// TODO: your codebase hook for bleeding stacks/severity
-	// Примеры (замени на то, что у вас реально есть):
-	// target.apply_status_effect(/datum/status_effect/debuff/bleeding, severity)
-	// или target.AddWound(/datum/wound/slash, severity)
 	if(hascall(target, "apply_status_effect"))
 		target.apply_status_effect(/datum/status_effect/debuff/bleeding, severity)
 	else
-		// мягкий fallback: просто сообщение (чтобы хоть видно было, что сработало)
 		to_chat(owner, span_warning("[target] starts bleeding (severity [severity])!"))
 
 /datum/component/combo_core/ronin/proc/_ApplyArmorWearForward(mult = 0.5, tiles = 2, zone = BODY_ZONE_CHEST)
@@ -308,7 +261,6 @@
 	if(!T)
 		return
 
-	// износ брони как в soundbreaker-логике (упрощённо)
 	for(var/i in 1 to tiles)
 		T = get_step(T, d)
 		if(!T)
@@ -318,7 +270,6 @@
 			if(H == owner)
 				continue
 
-			// в soundbreaker ты делал более умно по armor.getRating, тут — тот же паттерн:
 			_apply_combo_armor_wear_simple(H, zone, "slash", force, mult)
 
 /datum/component/combo_core/ronin/proc/_apply_combo_armor_wear_simple(mob/living/carbon/human/target, hit_zone, attack_flag, force_dynamic, multiplier = 1)
@@ -369,14 +320,11 @@
 	if(!d)
 		d = owner.dir
 
-	// простая версия "как у soundbreaker": шаг 1-2 тайла, и на каждом пытаемся порезать
 	var/turf/t1 = get_step(start, d)
 	if(!t1 || t1.density)
 		return
 
 	var/turf/t2 = get_step(t1, d)
-	// если второй заблокирован, просто делаем первый
-
 	owner.forceMove(t1)
 	_RonSlashOnTurf(t1, force, zone)
 
@@ -399,7 +347,6 @@
 	if(!victim)
 		return
 
-	// 2 пореза = 2 раза “режущего” урона, упрощённо через apply_damage/adjustBruteLoss
 	for(var/i in 1 to 2)
 		var/dmg = max(1, round(force * 0.35))
 		if(hascall(victim, "apply_damage"))
@@ -455,7 +402,6 @@
 	var/force = _GetBladeForce()
 	var/extra = max(1, round(force * 0.5))
 
-	// “рипост” — тут делаю ощутимый бонус: доп.урон + короткий стан
 	if(hascall(target, "apply_damage"))
 		target.apply_damage(extra, BRUTE, zone)
 	else if(hascall(target, "adjustBruteLoss"))
@@ -511,11 +457,6 @@
 		if(isnum(base))
 			W.force = base
 
-
-// ----------------------------------------------------
-// ACTIVE BLADE
-// ----------------------------------------------------
-
 /datum/component/combo_core/ronin/proc/UpdateActiveBlade()
 	active_blade = null
 	if(!owner)
@@ -529,11 +470,6 @@
 	UpdateActiveBlade()
 	return (active_blade && (active_blade in bound_blades))
 
-
-// ----------------------------------------------------
-// ELDER STORAGE (cycle between sheathed bound blades)
-// ----------------------------------------------------
-
 /datum/component/combo_core/ronin/proc/GetNextElderBlade()
 	if(!bound_blades || !bound_blades.len)
 		return null
@@ -545,15 +481,12 @@
 		if(!W || QDELETED(W))
 			continue
 
-		// пишем elder только если клинок реально в ножнах
 		if(!istype(W.loc, /obj/item/rogueweapon/scabbard))
 			continue
 
-		// свободный клинок — берём сразу
 		if(!W.ronin_prepared_combo)
 			return W
 
-		// иначе: выбираем самый старый для перезаписи (и будет “по кругу”)
 		if(W.ronin_prepared_at < oldest_time)
 			oldest_time = W.ronin_prepared_at
 			oldest = W
@@ -584,31 +517,22 @@
 	to_chat(owner, span_notice("Elder prepared: [rule_id] -> [W]."))
 	return TRUE
 
-
-// ----------------------------------------------------
-// MINOR / ELDER EXECUTION
-// ----------------------------------------------------
-
 /datum/component/combo_core/ronin/proc/ExecuteMinorCombo(rule_id, mob/living/target, zone)
 	if(!owner || !target || !rule_id)
 		return FALSE
 
 	switch(rule_id)
 		if("ryu")
-			// +50% force в ожогах
 			_ApplyBurnFromForce(target, zone, 0.5)
 
 		if("kitsune")
-			// отталкивает на 2 тайла вперёд
 			var/d = _GetAimDirTo(target)
 			_Knockback(target, 2, d)
 
 		if("tanuki")
-			// +4 PER на 4 удара
 			_StartTanukiPerBuff()
 
 		if("tengu")
-			// кровотечение 4
 			_ApplyBleed(target, 4)
 
 	ShowMinorComboIcon(target, rule_id)
@@ -625,7 +549,6 @@
 
 	switch(rule_id)
 		if("ryu")
-			// сравнить stamina врага с силой клинка
 			if(!target)
 				return
 
@@ -634,27 +557,22 @@
 			if(isnum(target.stamina))
 				stam = target.stamina
 
-			// если stamina неизвестна — хотя бы не ломаемся
 			if(isnull(stam))
 				target.OffBalance(1.5 SECONDS)
 			else if(force > stam)
 				target.OffBalance(2 SECONDS)
 			else
-				// иначе +2 к силе (я трактую как +2 стека ронина = +4% force, честно/красиво)
 				ronin_stacks = min(ronin_stacks + 2, RONIN_MAX_STACKS_OVERDRIVE)
 				ApplyBoundForceMultiplier()
 				to_chat(owner, span_notice("Ryu hardens your edge (+2 stacks)."))
 
 		if("kitsune")
-			// +50% force по броне вперед на 2 тайла (износ брони)
 			_ApplyArmorWearForward(0.5, 2, zone)
 
 		if("tanuki")
-			// рипост на 4 ударе
 			_StartElderTanukiRiposte()
 
 		if("tengu")
-			// рывок как у брейкера, 2 пореза
 			if(target)
 				_DashSlashTengu(target, zone)
 
@@ -663,15 +581,11 @@
 		span_notice("Elder technique: [rule_id]."),
 	)
 
-// ----------------------------------------------------
-// COUNTER STANCE
-// ----------------------------------------------------
-
 /datum/component/combo_core/ronin/proc/EnterCounterStance()
 	if(in_counter_stance)
 		return
 	UpdateActiveBlade()
-	if(active_blade) // если меч в руке — стойка не нужна
+	if(active_blade)
 		return
 
 	in_counter_stance = TRUE
@@ -685,32 +599,21 @@
 	if(in_counter_stance && world.time >= counter_expires_at)
 		ExitCounterStance()
 
-
-// ----------------------------------------------------
-// SIGNALS
-// ----------------------------------------------------
-
 /datum/component/combo_core/ronin/proc/_sig_try_consume(datum/source, atom/target_atom, zone)
 	SIGNAL_HANDLER
-
-	// всегда -1 стак на попытку атаки
 	if(ronin_stacks > 0)
 		ronin_stacks--
 		ApplyBoundForceMultiplier()
 
-	// Tanuki (minor): считаем "4 удара" как 4 атаки (а не 4 успешных хита)
 	if(tanuki_per_hits_left > 0)
 		tanuki_per_hits_left--
 		if(tanuki_per_hits_left <= 0)
 			_EndTanukiPerBuff()
 
-	// Tanuki (elder): "рипост на 4 ударе" как 4 атаки
 	if(elder_tanuki_riposte_hits_left > 0)
 		elder_tanuki_riposte_hits_left--
 		if(elder_tanuki_riposte_hits_left <= 0)
 			elder_tanuki_riposte_hits_left = 0
-			// ВАЖНО: триггер рипоста тут только если у нас есть валидная цель
-			// try_consume может быть без моба-цели, так что используем target_atom.
 			var/mob/living/L = target_atom
 			if(isliving(L))
 				_HandleElderTanukiRiposteOnHit(L, zone)
@@ -722,10 +625,7 @@
 	if(user != owner)
 		return
 
-	// успешный удар включает overdrive на 5 секунд
 	overdrive_until = max(overdrive_until, world.time + RONIN_OVERDRIVE_DURATION)
-
-	// minor: подтвердить ввод и засчитать в history
 	if(pending_hit_input)
 		var/icon_file = 'modular_twilight_axis/icons/roguetown/misc/roninspells.dmi'
 		var/icon_state = null
@@ -738,8 +638,6 @@
 		RegisterInput(pending_hit_input, target, user.zone_selected)
 		pending_hit_input = null
 
-	// elder: если записано на клинке — сработать и очистить
-	// source == listened_blade == active_blade (обычно)
 	var/obj/item/rogueweapon/W = source
 	if(istype(W) && W.ronin_prepared_combo)
 		var/rule_id = W.ronin_prepared_combo
@@ -767,7 +665,6 @@
 
 	RegisterInput(skill_id, null, zone)
 
-/// dodge в стойке: если меч не вынут — quickdraw + хук "мгновенный удар"
 /datum/component/combo_core/ronin/proc/_sig_dodge_success(datum/source)
 	SIGNAL_HANDLER
 	CheckCounterExpire()
@@ -783,19 +680,15 @@
 	in_counter_stance = FALSE
 
 /datum/component/combo_core/ronin/proc/UpdateAttackSuccessListener()
-	// снимаем старую подписку
 	if(listened_blade && !QDELETED(listened_blade))
 		UnregisterSignal(listened_blade, COMSIG_ITEM_ATTACK_SUCCESS)
 	listened_blade = null
-
-	// вешаем новую, если в руке bound клинок
 	UpdateActiveBlade()
 	if(active_blade && (active_blade in bound_blades))
 		listened_blade = active_blade
 		RegisterSignal(listened_blade, COMSIG_ITEM_ATTACK_SUCCESS, PROC_REF(_sig_item_attack_success))
 
 /datum/component/combo_core/ronin/proc/TryCounterInstantStrike()
-	// ХУК: тут делай авто-удар тем пайплайном, который у вас принят.
 	return
 
 /datum/component/combo_core/ronin/proc/QuickDraw(consume_stacks = FALSE)
@@ -828,15 +721,9 @@
 
 	active_blade = W
 	UpdateAttackSuccessListener()
-
-	// consume_stacks теперь означает: обнулить СТАКИ РОНИНА, а не оружия
 	if(consume_stacks)
 		ronin_stacks = 0
 		ApplyBoundForceMultiplier()
-
-	// elder на выхвате по твоему описанию НЕ обязан сразу срабатывать,
-	// но если хочешь "сбрасывать" — можешь сбросить тут:
-	// (я бы не сбрасывал, пусть сработает на следующем успешном ударе)
 
 	return TRUE
 
