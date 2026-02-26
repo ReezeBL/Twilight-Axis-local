@@ -7,6 +7,8 @@
 /atom/movable/screen/alert/status_effect/mouth_full
 	name = "Full Mouth"
 	desc = "Click to swallow a bit."
+	icon = 'modular_twilight_axis/icons/roguetown/misc/screen_alert.dmi'
+	icon_state = "full_in"
 
 /atom/movable/screen/alert/status_effect/mouth_full/Click(location, control, params)
 	..()
@@ -110,6 +112,8 @@
 /atom/movable/screen/alert/status_effect/love_potion
 	name = "love sickness"
 	desc = "Непреодолимая тяга к тому, кого вы любите."
+	icon = 'modular_twilight_axis/icons/roguetown/misc/screen_alert.dmi'
+	icon_state = "full_in"
 
 #define ERP_COATING_ZONE_GROIN "groin"
 #define ERP_COATING_ZONE_CHEST "chest"
@@ -215,7 +219,7 @@
 /atom/movable/screen/alert/status_effect/knot_tied
 	name = "Knotted"
 	icon_state = "knotted"
-
+	icon = 'modular_twilight_axis/icons/roguetown/misc/screen_alert.dmi'
 
 /datum/status_effect/knot_fucked_stupid
 	id = "knot_fucked_stupid"
@@ -332,4 +336,5 @@
 /atom/movable/screen/alert/status_effect/debuff/erp_overload
 	name = "Overstimulated"
 	desc = "Too much pleasure. My mind is foggy and my body is heavy."
-	icon_state = "debuff"
+	icon = 'modular_twilight_axis/icons/roguetown/misc/screen_alert.dmi'
+	icon_state = "full_in"
