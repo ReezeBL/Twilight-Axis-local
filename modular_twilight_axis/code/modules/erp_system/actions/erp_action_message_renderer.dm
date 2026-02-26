@@ -9,6 +9,7 @@
 	var/text = "[template]"
 	text = apply_conditionals(text, L)
 	text = replace_keywords(text, L)
+	text = replace_knot_scene_keywords(text, L)
 	return text
 
 /// Applies conditional segments like {key?YES:NO} to a text using resolve_condition().
@@ -51,3 +52,13 @@
 	t = replacetext(t, "{zone}",  "[L.get_target_zone_text()]")
 	t = replacetext(t, "{pose}",  "[L.get_pose_text()]")
 	return t
+
+/datum/erp_action_message_renderer/proc/replace_knot_scene_keywords(text, datum/erp_sex_link/L)
+	if(!text || !L || !L.is_knot_scene())
+		return text
+
+	var/last = copytext(text, length(text), length(text) + 1)
+	if(last == "." || last == "!" || last == "?")
+		return "[copytext(text, 1, length(text))] по самый узел[last]"
+
+	return "[text] по самый узел"

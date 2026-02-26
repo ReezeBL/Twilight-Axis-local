@@ -111,6 +111,9 @@
 /datum/erp_sex_link/proc/is_dullahan_scene()
 	return SSerp?.link_rules?.is_dullahan_scene(src)
 
+/datum/erp_sex_link/proc/is_knot_scene()
+	return SSerp?.link_rules?.is_knot_scene(src)
+
 /// Keyword replacement helper for templates: {zone}.
 /datum/erp_sex_link/proc/get_target_zone_text()
 	return SSerp?.link_presenter?.get_target_zone_text(src) || "тело"
