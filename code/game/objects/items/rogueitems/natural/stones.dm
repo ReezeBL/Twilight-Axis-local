@@ -217,7 +217,7 @@ GLOBAL_LIST_INIT(stone_personality_descs, list(
 	var/list/given_intent_list = list(/datum/intent/hit) // By default you get this at least
 	var/list/extra_intent_list = list() // List of intents that we can possibly give it by the end of this
 	var/list/blunt_intents = list(/datum/intent/mace/strike/wood, /datum/intent/mace/smash/wood)
-	var/list/sharp_intents = list(/datum/intent/dagger/cut, /datum/intent/dagger/thrust, /datum/intent/dagger/chop)
+	var/list/sharp_intents = list(/datum/intent/dagger/cut, /datum/intent/dagger/thrust/quick, /datum/intent/dagger/chop) // TA edit, prev. /thrust,
 
 	var/bluntness_rating = rand(0,10)
 	var/sharpness_rating = rand(0,10)
@@ -305,6 +305,8 @@ GLOBAL_LIST_INIT(stone_personality_descs, list(
 	desc = stone_desc
 	force += bonus_force // This will result in a stone that has only 40 max at a extremely low chance damage at this time of this PR.
 	throwforce += bonus_force // It gets added to throw damage too
+	force = min(force, 20) // TA EDIT
+	throwforce = min(throwforce, 20) // TA EDIT
 	possible_item_intents = given_intent_list // And heres ur new extra intents too
 
 /obj/item/natural/stone/attackby(obj/item/W, mob/living/user, params)
