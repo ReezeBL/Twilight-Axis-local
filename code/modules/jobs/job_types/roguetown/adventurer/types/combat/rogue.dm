@@ -64,6 +64,7 @@
 			if("Whip")
 				H.adjust_skillrank_up_to(/datum/skill/combat/whipsflails, SKILL_LEVEL_JOURNEYMAN, TRUE)
 				beltr = /obj/item/rogueweapon/whip
+		H.AddComponent(/datum/component/trophy_hunter) //TA edit - added trophy_hunter component
 
 /datum/advclass/rogue/thief
 	name = "Thief"
