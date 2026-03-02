@@ -404,38 +404,38 @@ GLOBAL_LIST_EMPTY(loadout_items_by_category)
 
 /datum/loadout_item/surcoatheavy
 	name = "Surcoat, Overvestments"
+	category = "Плащи"
 	path = /obj/item/clothing/cloak/tabard/stabard/crusader/heavy
-	sort_category = "Cloaks"
 
 /datum/loadout_item/surcoatgoldenorder
 	name = "Surcoat, Golden Order"
+	category = "Плащи"
 	path = /obj/item/clothing/cloak/tabard/stabard/crusader
-	sort_category = "Cloaks"
 
 /datum/loadout_item/surcoatsilverorder
 	name = "Surcoat, Silver Order"
+	category = "Плащи"
 	path = /obj/item/clothing/cloak/tabard/stabard/crusader/t
-	sort_category = "Cloaks"
 
 /datum/loadout_item/surcoatgoldenorderast
 	name = "Surcoat, Golden Order, Astratan"
+	category = "Плащи"
 	path = /obj/item/clothing/cloak/tabard/stabard/crusader/astrata
-	sort_category = "Cloaks"
 
 /datum/loadout_item/surcoatsilverorderast
 	name = "Surcoat, Silver Order, Astratan"
+	category = "Плащи"
 	path = /obj/item/clothing/cloak/tabard/stabard/crusader/t/astrata
-	sort_category = "Cloaks"
 
 /datum/loadout_item/surcoatgoldenorderuni
 	name = "Surcoat, Golden Order, Undivided"
+	category = "Плащи"
 	path = /obj/item/clothing/cloak/tabard/stabard/crusader/undivided
-	sort_category = "Cloaks"
 
 /datum/loadout_item/surcoatsilverorderuni
 	name = "Surcoat, Silver Order, Undivided"
+	category = "Плащи"
 	path = /obj/item/clothing/cloak/tabard/stabard/crusader/t/undivided
-	sort_category = "Cloaks"
 
 //SHOES
 /datum/loadout_item/darkboots
