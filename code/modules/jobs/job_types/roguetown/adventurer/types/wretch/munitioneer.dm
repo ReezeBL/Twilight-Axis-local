@@ -78,7 +78,7 @@
 		if("Path of the Crossbow - Crossbow and Bolts")
 			H.adjust_skillrank_up_to(/datum/skill/combat/crossbows, SKILL_LEVEL_EXPERT, TRUE)
 			H.put_in_hands(new /obj/item/gun/ballistic/revolver/grenadelauncher/crossbow)
-			H.equip_to_slot_or_del(new /obj/item/quiver/bolts, SLOT_BELT_L, TRUE)
+			H.equip_to_slot_or_del(new /obj/item/quiver/bolt/standard, SLOT_BELT_L, TRUE)
 		if("Path of the Pick - Pulaski Axe")
 			H.adjust_skillrank_up_to(/datum/skill/combat/axes, SKILL_LEVEL_EXPERT, TRUE)
 			H.put_in_hands(new /obj/item/rogueweapon/stoneaxe/woodcut/pick)

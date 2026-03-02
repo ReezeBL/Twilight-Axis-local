@@ -200,46 +200,10 @@
 		arrows += A
 	update_icon()
 
-
 /obj/item/quiver/bluntarrows/Initialize()
 	..()
 	for(var/i in 1 to max_storage)
 		var/obj/item/ammo_casing/caseless/rogue/arrow/blunt/A = new()
-		arrows += A
-	update_icon()
-
-/obj/item/quiver/bolts/Initialize()
-	..()
-	for(var/i in 1 to max_storage)
-		var/obj/item/ammo_casing/caseless/rogue/bolt/A = new()
-		arrows += A
-	update_icon()
-
-/obj/item/quiver/bluntbolts/Initialize()
-	..()
-	for(var/i in  1 to max_storage)
-		var/obj/item/ammo_casing/caseless/rogue/bolt/blunt/A = new()
-		arrows += A
-	update_icon()
-
-/obj/item/quiver/holybolts/Initialize()
-	..()
-	for(var/i in 1 to max_storage)
-		var/obj/item/ammo_casing/caseless/rogue/bolt/holy/A = new()
-		arrows += A
-	update_icon()
-
-/obj/item/quiver/Wbolts/Initialize()
-	..()
-	for(var/i in 1 to max_storage)
-		var/obj/item/ammo_casing/caseless/rogue/bolt/water/A = new()
-		arrows += A
-	update_icon()
-
-/obj/item/quiver/pyrobolts/Initialize()
-	. = ..()
-	for(var/i in 1 to max_storage)
-		var/obj/item/ammo_casing/caseless/rogue/bolt/pyro/A = new()
 		arrows += A
 	update_icon()
 
@@ -259,13 +223,6 @@
 
 /obj/item/quiver/Parrows/Initialize()
 	. = ..()
-
-/obj/item/quiver/bolts/paalloy/Initialize()
-	..()
-	for(var/i in 1 to max_storage)
-		var/obj/item/ammo_casing/caseless/rogue/bolt/paalloy/A = new()
-		arrows += A
-	update_icon()
 
 /obj/item/quiver/Warrows/Initialize()
 	..()
@@ -465,6 +422,13 @@
 	..()
 	for(var/i in 1 to max_storage)
 		var/obj/item/ammo_casing/caseless/rogue/bolt/silver/A = new()
+		arrows += A
+	update_icon()
+
+/obj/item/quiver/bolt/light/Initialize()
+	..()
+	for(var/i in 1 to max_storage)
+		var/obj/item/ammo_casing/caseless/rogue/bolt/light/A = new()
 		arrows += A
 	update_icon()
 

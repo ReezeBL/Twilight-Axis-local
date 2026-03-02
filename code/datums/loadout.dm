@@ -402,6 +402,41 @@ GLOBAL_LIST_EMPTY(loadout_items_by_category)
 	category = "Плащи"
 	path = /obj/item/clothing/cloak/apron/cook
 
+/datum/loadout_item/surcoatheavy
+	name = "Surcoat, Overvestments"
+	category = "Плащи"
+	path = /obj/item/clothing/cloak/tabard/stabard/crusader/heavy
+
+/datum/loadout_item/surcoatgoldenorder
+	name = "Surcoat, Golden Order"
+	category = "Плащи"
+	path = /obj/item/clothing/cloak/tabard/stabard/crusader
+
+/datum/loadout_item/surcoatsilverorder
+	name = "Surcoat, Silver Order"
+	category = "Плащи"
+	path = /obj/item/clothing/cloak/tabard/stabard/crusader/t
+
+/datum/loadout_item/surcoatgoldenorderast
+	name = "Surcoat, Golden Order, Astratan"
+	category = "Плащи"
+	path = /obj/item/clothing/cloak/tabard/stabard/crusader/astrata
+
+/datum/loadout_item/surcoatsilverorderast
+	name = "Surcoat, Silver Order, Astratan"
+	category = "Плащи"
+	path = /obj/item/clothing/cloak/tabard/stabard/crusader/t/astrata
+
+/datum/loadout_item/surcoatgoldenorderuni
+	name = "Surcoat, Golden Order, Undivided"
+	category = "Плащи"
+	path = /obj/item/clothing/cloak/tabard/stabard/crusader/undivided
+
+/datum/loadout_item/surcoatsilverorderuni
+	name = "Surcoat, Silver Order, Undivided"
+	category = "Плащи"
+	path = /obj/item/clothing/cloak/tabard/stabard/crusader/t/undivided
+
 //SHOES
 /datum/loadout_item/darkboots
 	name = "Dark Boots"

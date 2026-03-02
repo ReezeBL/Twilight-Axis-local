@@ -518,7 +518,7 @@
 /obj/structure/roguemachine/vendor/keep_guests/Initialize()
 	. = ..()
 
-	for (var/X in list(/obj/item/roguekey/manor/guest, /obj/item/roguekey/manor/guest/two, /obj/item/roguekey/manor/guest/three, /obj/item/roguekey/manor/guest/four))
+	for (var/X in list(/obj/item/storage/keyring/manor/guest/one, /obj/item/storage/keyring/manor/guest/two, /obj/item/storage/keyring/manor/guest/three, /obj/item/storage/keyring/manor/guest/four))
 		var/obj/P = new X(src)
 		held_items[P] = list()
 		held_items[P]["NAME"] = P.name
