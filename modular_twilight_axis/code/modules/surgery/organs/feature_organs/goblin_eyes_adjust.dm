@@ -43,10 +43,13 @@
 		return
 
 	var/obj/item/organ/eyes/E = source.getorganslot(ORGAN_SLOT_EYES)
-	if(!E || !E.low_quality_eye)
+	if(!E || !E.status_type)
 		return
 
-	examine_list += span_warning("A dim, unsettling red light lingers in their gaze - as if something else peers through them.")
+	if(E.status_type == /datum/status_effect/debuff/goblin_eye_implant)
+		examine_list += span_warning("A faint crimson glint flickers in their gaze — sharp, foreign, and wrong.")
+	else if(E.status_type == /datum/status_effect/debuff/zombie_eye_implant)
+		examine_list += span_warning("A dull, corpse-like sheen clouds their eyes — as if something dead stares back from within.")
 
 /obj/item/organ/eyes
 	var/low_quality_eye = FALSE
