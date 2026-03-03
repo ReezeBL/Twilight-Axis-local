@@ -104,18 +104,13 @@
 		qdel(ui)
 		ui = null
 
-	var/datum/erp_actor/old_owner = owner
-	owner = null
-
 	if(actors)
 		for(var/datum/erp_actor/A2 in actors)
-			if(A2 && A2 != old_owner)
-				qdel(A2)
+			if(A2)
+				SSerp.release_actor(A2)
 		actors = null
 
-	if(old_owner)
-		qdel(old_owner)
-
+	owner = null
 	active_partner = null
 	owner_client = null
 

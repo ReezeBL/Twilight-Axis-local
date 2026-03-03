@@ -275,6 +275,8 @@
 		adjust_satisfaction(ERP_SP_GAIN_MASTURBATE)
 	else
 		adjust_satisfaction(ERP_SP_GAIN_PARTNER)
+	
+	try_award_goodlover_triumph(partner)
 
 /datum/component/arousal/proc/get_climax_stress_event(mob/living/carbon/human/partner, is_masturbation)
 	var/is_nympho = is_lovefiend()
@@ -494,7 +496,7 @@
 	if(!istype(H))
 		return
 
-	after_ejaculation(null, H, null)
+	apply_ejaculation_effects(H)
 	return
 
 /datum/component/arousal/handle_climax(climax_type, mob/living/carbon/human/climaxer, mob/living/carbon/human/partner, action)
@@ -538,13 +540,15 @@
 		cost = round(cost * 0.75)
 	return max(1, cost)
 
-/datum/component/arousal/after_ejaculation(datum/sex_action/action, mob/living/carbon/human/climaxer, mob/living/carbon/human/partner)
+/datum/component/arousal/proc/apply_ejaculation_effects(mob/living/carbon/human/climaxer)
 	if(!istype(climaxer))
 		return
 
 	SEND_SIGNAL(climaxer, COMSIG_SEX_SET_AROUSAL, 20)
 	SEND_SIGNAL(climaxer, COMSIG_SEX_CLIMAX)
 
+
+	try_award_goodlover_triumph()
 	var/cost = get_charge_cost_for_climax()
 	charge = max(0, charge - cost)
 
@@ -761,6 +765,48 @@
 
 	return null
 
+#define ERP_GOODLOVER_SP_THRESHOLD 2.0
+
+/datum/component/arousal/proc/try_award_goodlover_triumph(mob/living/carbon/human/partner)
+	if(satisfaction_points < ERP_GOODLOVER_SP_THRESHOLD)
+		return
+
+	var/mob/living/carbon/human/climaxer = parent
+	if(!istype(climaxer) || climaxer.stat == DEAD)
+		return
+
+	if(!istype(partner) || partner == climaxer || QDELETED(partner) || partner.stat == DEAD)
+		return
+
+	if(!(HAS_TRAIT(partner, TRAIT_GOODLOVER) || HAS_TRAIT(climaxer, TRAIT_GOODLOVER)))
+		return
+
+	if(!climaxer.mob_timers)
+		climaxer.mob_timers = list()
+	if(!partner.mob_timers)
+		partner.mob_timers = list()
+
+	if(!climaxer.mob_timers["cumtri"])
+		climaxer.mob_timers["cumtri"] = world.time
+		climaxer.adjust_triumphs(1)
+		to_chat(climaxer, span_love("Our loving is a true TRIUMPH!"))
+
+	if(!partner.mob_timers["cumtri"])
+		partner.mob_timers["cumtri"] = world.time
+		partner.adjust_triumphs(1)
+		to_chat(partner, span_love("Our loving is a true TRIUMPH!"))
+
+#undef ERP_GOODLOVER_SP_THRESHOLD
+
+/datum/component/arousal/set_charge(amount)
+	var/empty = (charge < get_charge_cost_for_climax())
+	charge = clamp(amount, 0, SEX_MAX_CHARGE)
+	var/after_empty = (charge < get_charge_cost_for_climax())
+	if(empty && !after_empty)
+		to_chat(parent, span_notice("I feel like I'm not so spent anymore"))
+	if(!empty && after_empty)
+		to_chat(parent, span_notice("I'm spent!"))
+
 /datum/component/arousal/proc/is_nympho_sp_floor_active()
 	return is_lovefiend() && (world.time < nympho_sp_floor_until)
 
@@ -809,7 +855,4 @@
 		if(SEX_SPEED_EXTREME)
 			return 1.4
 
-
-#undef ERP_OVERLOAD_SLEEP_DECAY_INTERVAL
 #undef NYMPHO_AROUSAL_SOFT_CAP
-
