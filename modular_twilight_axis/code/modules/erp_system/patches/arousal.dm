@@ -358,7 +358,7 @@
 /datum/component/arousal/process(dt)
 	seed_satisfaction_if_needed()
 	handle_satisfaction_decay()
-	handle_overload_sleep_clear()
+	handle_overload_sleep_decay()
 	handle_overload_decay()
 	handle_charge(dt * 1)
 	handle_lovefiend_idle(dt)
@@ -680,13 +680,13 @@
 
 #define ERP_OVERLOAD_SLEEP_DECAY_INTERVAL (30 SECONDS)
 
-/datum/component/arousal/proc/handle_overload_sleep_clear()
+/datum/component/arousal/proc/handle_overload_sleep_decay()
 	if(overload_points <= 0)
 		last_overload_sleep_decay_time = 0
 		return
 
 	var/mob/living/carbon/human/H = parent
-	if(!istype(H))
+	if(!istype(H) || QDELETED(H))
 		last_overload_sleep_decay_time = 0
 		return
 
@@ -694,8 +694,23 @@
 		last_overload_sleep_decay_time = 0
 		return
 
-	clear_overload_points("sleep")
-	last_overload_sleep_decay_time = 0
+	if(!last_overload_sleep_decay_time)
+		last_overload_sleep_decay_time = world.time
+		return
+
+	if(world.time < last_overload_sleep_decay_time + ERP_OVERLOAD_SLEEP_DECAY_INTERVAL)
+		return
+
+	var/steps = floor((world.time - last_overload_sleep_decay_time) / ERP_OVERLOAD_SLEEP_DECAY_INTERVAL)
+	if(steps <= 0)
+		return
+
+	last_overload_sleep_decay_time += steps * ERP_OVERLOAD_SLEEP_DECAY_INTERVAL
+
+	overload_points = max(0, overload_points - steps)
+	update_overload_debuff()
+
+#undef ERP_OVERLOAD_SLEEP_DECAY_INTERVAL
 
 /datum/component/arousal/adjust_arousal(datum/source, amount, forced = FALSE)
 	if(arousal_frozen)

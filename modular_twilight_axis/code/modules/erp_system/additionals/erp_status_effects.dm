@@ -313,7 +313,7 @@
 	id = "erp_overload"
 	status_type = STATUS_EFFECT_REFRESH
 	alert_type = /atom/movable/screen/alert/status_effect/debuff/erp_overload
-	duration = ERP_OVERLOAD_DECAY_INTERVAL
+	duration = -1
 	var/stacks = 0
 
 /datum/status_effect/debuff/erp_overload/proc/set_stacks(new_stacks)
