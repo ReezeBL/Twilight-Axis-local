@@ -86,9 +86,6 @@
 	if(!should_handle_as_implanted_low_quality_eye(H, initialising))
 		return
 
-	if(!H.GetComponent(/datum/component/goblin_eye_implant_examine))
-		H.AddComponent(/datum/component/goblin_eye_implant_examine)
-
 	apply_eye_penalty(H)
 
 /obj/item/organ/eyes/Remove(mob/living/carbon/M, special = FALSE)
@@ -100,7 +97,6 @@
 	if(!H.ckey)
 		return
 
-	qdel(H.GetComponent(/datum/component/goblin_eye_implant_examine))
 	if(status_type)
 		H.remove_status_effect(status_type)
 
