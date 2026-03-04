@@ -29,86 +29,62 @@
 /obj/effect/proc_holder/spell/self/library/ui_data(mob/user)
 	var/list/data = list()
 	
-	
-	var/points_avail = 0
+
 	if(user.mind)
-		points_avail = user.mind.spell_points - user.mind.used_spell_points
+		if(LAZYLEN(user.mind.spell_point_pools))
+
+			var/list/pools_data = list()
+			for(var/pool_name in user.mind.spell_point_pools)
+				var/max_pts = user.mind.spell_point_pools[pool_name]
+				var/used_pts = user.mind.spell_points_used_by_pool?[pool_name] || 0
+				pools_data += list(list(
+					"name" = capitalize(pool_name),
+					"remaining" = max_pts - used_pts,
+					"max" = max_pts
+				))
+			data["spell_pools"] = pools_data
+		else
+			data["user_points"] = user.mind.spell_points - user.mind.used_spell_points
 	
-	data["user_points"] = points_avail
 	data["hide_unavailable"] = hide_unavailable
 
-
 	var/list/possible_spells = list()
-	
 	for(var/spell_type in GLOB.learnable_spells)
-		
 		var/status = can_learn_spell(user, spell_type, check_cost = FALSE)
 		if(status == "tier" || status == "evil")
 			continue
 		possible_spells += spell_type
 
-	
 	var/len = possible_spells.len
 	if(len > 1)
 		for(var/i = 1 to len)
 			for(var/j = 1 to len - i)
 				var/pathA = possible_spells[j]
 				var/pathB = possible_spells[j+1]
-				
-
 				var/obj/effect/proc_holder/spell/A = pathA
 				var/obj/effect/proc_holder/spell/B = pathB
-				
-				var/tierA = initial(A.spell_tier)
-				var/tierB = initial(B.spell_tier)
-				var/costA = initial(A.cost)
-				var/costB = initial(B.cost)
-				
-				var/swap = FALSE
-				
-				if(tierA > tierB)
-					swap = TRUE
-				else if(tierA == tierB)
-					if(costA > costB)
-						swap = TRUE
-				
-				if(swap)
+				if(initial(A.spell_tier) > initial(B.spell_tier) || (initial(A.spell_tier) == initial(B.spell_tier) && initial(A.cost) > initial(B.cost)))
 					possible_spells.Swap(j, j+1)
 
-
 	var/list/spells = list()
-	
 	for(var/spell_type in possible_spells)
 		var/obj/effect/proc_holder/spell/S = spell_type
-		
-		var/status = can_learn_spell(user, spell_type, check_cost = FALSE)
-		
-		var/can_afford = (can_learn_spell(user, spell_type, check_cost = TRUE) != "cost")
-		var/is_known = (status == "known")
 		
 		var/icon_file = initial(S.action_icon)
 		var/icon_state_str = initial(S.overlay_state) || initial(S.action_icon_state)
 		
-		if(!icon_file) icon_file = 'icons/mob/actions/roguespells.dmi' 
+		if(!icon_file) 
+			icon_file = 'icons/mob/actions/roguespells.dmi' 
 		
-		var/icon/final_icon_obj = null
-		
-	
-		var/list/valid_states = icon_states(icon_file)
-
-		
-		if(icon_state_str && (icon_state_str in valid_states))
+		var/icon/final_icon_obj
+		if(icon_state_str && (icon_state_str in icon_states(icon_file)))
 			final_icon_obj = icon(icon_file, icon_state_str)
 		else
-			
 			final_icon_obj = icon('icons/mob/actions/roguespells.dmi', "spell")
 
-		var/icon_base64 = null
+		var/icon_base64 = ""
 		if(final_icon_obj)
-			try
-				icon_base64 = icon2base64(final_icon_obj)
-			catch
-				icon_base64 = null
+			icon_base64 = icon2base64(final_icon_obj)
 
 		var/list/spell_data = list(
 			"name" = initial(S.name),
@@ -117,10 +93,9 @@
 			"tier" = initial(S.spell_tier),
 			"path" = "[spell_type]", 
 			"img64" = icon_base64,
-			"is_known" = is_known,
-			"can_afford" = can_afford
+			"is_known" = (can_learn_spell(user, spell_type, FALSE) == "known"),
+			"can_afford" = (can_learn_spell(user, spell_type, TRUE) == "ok")
 		)
-		
 		spells += list(spell_data)
 	
 	data["spells"] = spells
@@ -220,6 +195,7 @@
 
 /obj/effect/proc_holder/spell/self/library/proc/can_learn_spell(mob/user, spell_type, check_cost = TRUE)
 	var/obj/effect/proc_holder/spell/S = spell_type
+	if(!user.mind) return "no_mind"
 	
 	for(var/obj/effect/proc_holder/spell/known in user.mind.spell_list)
 		if(known.type == spell_type) return "known"
@@ -228,7 +204,17 @@
 	if(initial(S.spell_tier) > get_user_spell_tier(user)) return "tier"
 
 	if(check_cost)
-		var/points_left = user.mind.spell_points - user.mind.used_spell_points
-		if(initial(S.cost) > points_left) return "cost"
+		var/cost = initial(S.cost)
+		if(LAZYLEN(user.mind.spell_point_pools))
+			var/can_pay = FALSE
+			for(var/pool_name in user.mind.spell_point_pools)
+				var/list/pool_spells = get_spell_pool_list(pool_name)
+				if(spell_type in pool_spells)
+					var/rem = user.mind.spell_point_pools[pool_name] - (user.mind.spell_points_used_by_pool?[pool_name] || 0)
+					if(rem >= cost) can_pay = TRUE
+					break
+			if(!can_pay) return "cost"
+		else
+			if(cost > (user.mind.spell_points - user.mind.used_spell_points)) return "cost"
             
 	return "ok"
