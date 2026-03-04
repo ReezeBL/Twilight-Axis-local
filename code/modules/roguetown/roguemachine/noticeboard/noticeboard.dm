@@ -133,7 +133,7 @@
 		for(var/TR in regional_threats)
 			var/datum/threat_region_display/TRS = TR
 			if(TRS && TRS.can_be_cleared)
-			contents += ("[TRS.region_name] <br>")
+				contents += ("[TRS.region_name] <br>")
 		if(SSmapping.config.map_name == "Rockhill")
 			contents += "Regions not listed are beyond the charge of the Vanguard. Danger will be constant in these regions.<br>"
 			contents += "Danger is reduced by luring villains and creechurs and killing them when they ambush you. The battle horns Vanguard has been issued can help with this. Take care with using it."
