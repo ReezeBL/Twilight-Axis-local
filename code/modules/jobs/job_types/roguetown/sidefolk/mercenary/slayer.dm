@@ -172,7 +172,15 @@
 	sound = 'sound/magic/axedance.ogg'
 
 /obj/effect/proc_holder/spell/self/axedance/cast(mob/living/user)
+	var/old_recharge_time = recharge_time
+	if(ishuman(user))
+		var/mob/living/carbon/human/H = user
+		recharge_time = round(initial(recharge_time) * H.get_trophy_rage_cooldown_mult())
+	else
+		recharge_time = initial(recharge_time)
+
 	user.apply_status_effect(/datum/status_effect/buff/axedance)
+	recharge_time = old_recharge_time
 	return TRUE
 
 #define AXEDANCE_FILTER "axedance_red"
@@ -190,8 +198,13 @@
 
 /datum/status_effect/buff/axedance/on_apply()
 	. = ..()
+	duration = initial(duration)
+	if(ishuman(owner))
+		var/mob/living/carbon/human/H = owner
+		duration += H.get_trophy_rage_duration_bonus()
+
 	var/filter = owner.get_filter(AXEDANCE_FILTER)
-	if (!filter)
+	if(!filter)
 		owner.add_filter(AXEDANCE_FILTER, 2, list("type" = "outline", "color" = outline_colour, "alpha" = 50, "size" = 1))
 	to_chat(owner, span_warning("I AM AN AVATAR OF DIVINE MIGHT!"))
 	ADD_TRAIT(owner, TRAIT_HARDDISMEMBER, STATUS_EFFECT_TRAIT)

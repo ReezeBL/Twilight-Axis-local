@@ -119,6 +119,7 @@
 	if(physiology)
 		protection += physiology.armor.getRating(d_type)
 	
+	protection += get_trophy_armor_bonus_for_zone(def_zone, d_type)
 	return protection
 
 /mob/living/carbon/human/proc/checkcritarmor(def_zone, bclass)
