@@ -29,7 +29,7 @@ type Data = {
 
 type SortDirection = 'asc' | 'desc';
 
-export const SpellLibrary = (props, context) => {
+export const SpellLibrary = () => {
   const { act, data } = useBackend<Data>(); 
 
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc'); 
