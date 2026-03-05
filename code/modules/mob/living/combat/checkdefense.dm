@@ -29,7 +29,7 @@
 		if(INTENT_DODGE)
 			success = attempt_dodge(intenty, user)
 			if(success)
-				ronin_on_dodge_success(src)
+				ronin_on_dodge_success(src, user)
 
 	if(success)
 		soundbreaker_riff_defense_success(src)

@@ -2,7 +2,7 @@
 #define RONIN_MAX_STACKS_NORMAL      5
 #define RONIN_MAX_STACKS_OVERDRIVE   20
 #define RONIN_OVERDRIVE_DURATION     (25 SECONDS)
-#define RONIN_FORCE_PER_STACK        0.02
+#define RONIN_FORCE_PER_STACK        0.01
 
 #define RONIN_GLOW_BOUND_FILTER    "ronin_bound_glow"
 #define RONIN_GLOW_PREP_FILTER     "ronin_prepared_glow"
@@ -13,10 +13,10 @@
 #define RONIN_GLOW_SIZE_BOUND      1.5
 #define RONIN_GLOW_SIZE_PREP       2
 
-/proc/ronin_on_dodge_success(mob/living/defender)
+/proc/ronin_on_dodge_success(mob/living/defender, mob/living/attacker)
 	if(!isliving(defender))
 		return
-	SEND_SIGNAL(defender, COMSIG_MOB_DODGE_SUCCESS)
+	SEND_SIGNAL(defender, COMSIG_MOB_DODGE_SUCCESS, attacker)
 
 /datum/component/combo_core/ronin
 	parent_type = /datum/component/combo_core
@@ -665,7 +665,7 @@
 
 	RegisterInput(skill_id, null, zone)
 
-/datum/component/combo_core/ronin/proc/_sig_dodge_success(datum/source)
+/datum/component/combo_core/ronin/proc/_sig_dodge_success(datum/source, mob/living/attacker)
 	SIGNAL_HANDLER
 	CheckCounterExpire()
 
@@ -675,7 +675,7 @@
 	UpdateActiveBlade()
 	if(!active_blade)
 		if(QuickDraw(FALSE))
-			TryCounterInstantStrike()
+			TryCounterInstantStrike(attacker)
 
 	in_counter_stance = FALSE
 
@@ -688,8 +688,19 @@
 		listened_blade = active_blade
 		RegisterSignal(listened_blade, COMSIG_ITEM_ATTACK_SUCCESS, PROC_REF(_sig_item_attack_success))
 
-/datum/component/combo_core/ronin/proc/TryCounterInstantStrike()
-	return
+/datum/component/combo_core/ronin/proc/TryCounterInstantStrike(mob/living/attacker)
+	if(!owner || !attacker)
+		return FALSE
+
+	UpdateActiveBlade()
+	if(!active_blade || QDELETED(active_blade))
+		return FALSE
+
+	if(!(active_blade in bound_blades))
+		return FALSE
+
+	active_blade.attack(attacker, owner)
+	return TRUE
 
 /datum/component/combo_core/ronin/proc/QuickDraw(consume_stacks = FALSE)
 	if(!owner || !bound_blades.len)
@@ -699,8 +710,6 @@
 	if(!W)
 		return FALSE
 
-	// Раньше было istype(W.loc, /obj/item/rogueweapon/scabbard)
-	// Теперь: W должен лежать в предмете, на котором есть holster-компонент
 	var/obj/item/sheath_item = W.loc
 	if(!isitem(sheath_item))
 		return FALSE
@@ -709,7 +718,6 @@
 	if(!H)
 		return FALSE
 
-	// Важно: именно holster хранит sheathed
 	if(H.sheathed != W)
 		return FALSE
 
