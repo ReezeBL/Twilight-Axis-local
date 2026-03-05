@@ -530,7 +530,7 @@
 
 		if("kitsune")
 			var/d = _GetAimDirTo(target)
-			_Knockback(target, 2, d)
+			_Knockback(target, 1, d)
 
 		if("tanuki")
 			_StartTanukiPerBuff()
