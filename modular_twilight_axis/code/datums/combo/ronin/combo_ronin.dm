@@ -672,6 +672,13 @@
 	if(!in_counter_stance)
 		return
 
+	INVOKE_ASYNC(src, PROC_REF(_async_dodge_success), attacker)
+
+/datum/component/combo_core/ronin/proc/_async_dodge_success(mob/living/attacker)
+	if(QDELETED(src) || !owner || QDELETED(owner) || !isliving(attacker) || attacker.stat == DEAD)
+		in_counter_stance = FALSE
+		return
+
 	UpdateActiveBlade()
 	if(!active_blade)
 		if(QuickDraw(FALSE))
