@@ -33,7 +33,7 @@ SUBSYSTEM_DEF(title)
 
 	if(!file_path)
 #ifndef ROGUEWORLD
-		file_path = pick("icons/default_title.dmi", "icons/rogueworld_title.dmi", "modular_twilight_axis/icons/map_title.dmi", "modular_twilight_axis/icons/roga_title.dmi")
+		file_path = "icons/default_title.dmi"
 #else
 		file_path = "icons/rogueworld_title.dmi"
 #endif
