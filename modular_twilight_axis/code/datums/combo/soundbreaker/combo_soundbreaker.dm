@@ -263,8 +263,6 @@
 
 	if(in_rhythm && new_stacks >= 1)
 		owner.apply_status_effect(/datum/status_effect/buff/soundbreaker_breaker_window, new_stacks)
-	else
-		owner.remove_status_effect(/datum/status_effect/buff/soundbreaker_breaker_window)
 
 /datum/component/combo_core/soundbreaker/proc/AddComboStack()
 	if(!owner)
