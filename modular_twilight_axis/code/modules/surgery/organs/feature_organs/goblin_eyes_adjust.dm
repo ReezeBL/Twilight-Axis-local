@@ -26,10 +26,16 @@
 /mob/living/get_villain_text(mob/examiner)
 	. = ..()
 
-	var/obj/item/organ/eyes/E = src.getorganslot(ORGAN_SLOT_EYES)
-	if(!E || !E.low_quality_eye)
-		return
-	. += span_userdanger("Their eyes send chills down your spine...")
+	if(!ishuman(src))
+		return .
+
+	var/mob/living/carbon/human/H = src
+	var/obj/item/organ/eyes/E = H.getorganslot(ORGAN_SLOT_EYES)
+	if(!E?.should_show_low_quality_eye_examine(H))
+		return .
+	if(.)
+		. += "<br>"
+	. += span_userdanger("A reddish glow lingers behind their eyes.")
 
 /obj/item/organ/eyes
 	var/low_quality_eye = FALSE
@@ -61,6 +67,22 @@
 	if(!H?.ckey)
 		return FALSE
 	if(initialising && is_species_default_eye(H))
+		return FALSE
+	return TRUE
+
+/obj/item/organ/eyes/proc/is_active_low_quality_eye_implant(mob/living/carbon/human/H)
+	if(!H?.client)
+		return FALSE
+	if(!low_quality_eye || !status_type)
+		return FALSE
+	return H.has_status_effect(status_type)
+
+/obj/item/organ/eyes/proc/should_show_low_quality_eye_examine(mob/living/carbon/human/H)
+	if(!is_active_low_quality_eye_implant(H))
+		return FALSE
+	if(H.is_eyes_covered(FALSE, TRUE, TRUE))
+		return FALSE
+	if((H.wear_mask?.flags_inv & HIDEFACE) || (H.head?.flags_inv & HIDEFACE) || (H.wear_neck?.flags_inv & HIDEFACE))
 		return FALSE
 	return TRUE
 
