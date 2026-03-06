@@ -63,7 +63,7 @@
 
 // Melee goon
 /datum/advclass/vanguard/footsman
-	name = "Vanguard footman"
+	name = "Vanguard Footman"
 	tutorial = "Вы хорошо владеете мечом и обладаете навыками, полезными в ближнем бою. \
 	Вы будете стоять впереди. И защищать."
 	outfit = /datum/outfit/job/roguetown/vanguard/footsman
@@ -105,6 +105,7 @@
 
 	H.adjust_blindness(-3)
 	if(H.mind)
+		SStreasury.give_money_account(ECONOMIC_LOWER_CLASS, H, "Savings.")
 		var/weapons = list("Warhammer & Shield","Axe & Shield","Sword & Shield","Spear")
 		var/weapon_choice = input(H, "Choose your weapon.", "TAKE UP ARMS") as anything in weapons
 		H.set_blindness(0)
@@ -140,8 +141,6 @@
 		var/helmchoice = input(H, "Choose your Helm.", "TAKE UP HELMS") as anything in helmets
 		if(helmchoice != "None")
 			head = helmets[helmchoice]
-	if(H.mind)
-		SStreasury.give_money_account(ECONOMIC_LOWER_CLASS, H, "Savings.")
 
 /datum/advclass/vanguard/archer
 	name = "Vanguard Archer"
@@ -188,6 +187,7 @@
 
 	H.adjust_blindness(-3)
 	if(H.mind)
+		SStreasury.give_money_account(ECONOMIC_LOWER_CLASS, H, "Savings.")
 		var/weapons = list("Footman archer","Light archer")
 		var/weapon_choice = input(H, "Choose your weapon.", "TAKE UP ARMS") as anything in weapons
 		H.set_blindness(0)
@@ -214,8 +214,6 @@
 		var/helmchoice = input(H, "Choose your Helm.", "TAKE UP HELMS") as anything in helmets
 		if(helmchoice != "None")
 			head = helmets[helmchoice]
-	if(H.mind)
-		SStreasury.give_money_account(ECONOMIC_LOWER_CLASS, H, "Savings.")
 
 /datum/advclass/vanguard/standard_bearer
 	name = "Vanguard Standard Bearer"
@@ -273,8 +271,6 @@
 		var/helmchoice = input(H, "Choose your Helm.", "TAKE UP HELMS") as anything in helmets
 		if(helmchoice != "None")
 			head = helmets[helmchoice]
-	if(H.mind)
-		SStreasury.give_money_account(ECONOMIC_LOWER_CLASS, H, "Savings.")
 
 // These are really hacky, but it works.
 // One proc to moodbuff.
