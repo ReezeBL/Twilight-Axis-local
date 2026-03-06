@@ -312,7 +312,7 @@
 	if(should_wear_masc_clothes(H))
 		H.dna.species.soundpack_m = new /datum/voicepack/male/warrior()
 	if(should_wear_femme_clothes(H))
-		H.dna.species.soundpack_m = new /datum/voicepack/female/warrior()
+		H.dna.species.soundpack_f = new /datum/voicepack/female/warrior()
 	backl = /obj/item/storage/backpack/rogue/satchel
 	backpack_contents = list(
 		/obj/item/flashlight/flare/torch = 1,
