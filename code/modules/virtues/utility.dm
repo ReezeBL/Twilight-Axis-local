@@ -134,8 +134,8 @@
 		"Orcish" = /datum/language/orcish,
 		"Infernal" = /datum/language/hellspeak,
 		"Draconic" = /datum/language/draconic,
-		"Celestial" = /datum/language/celestial,
-		"Ranesheni" = /datum/language/raneshi,
+		"Valorian" = /datum/language/valorian, //TA EDIT
+		"Sama'glos" = /datum/language/raneshi, //TA EDIT
 		"Grenzelhoftian" = /datum/language/grenzelhoftian,
 		"Kazengunese" = /datum/language/kazengunese,
 		"Lingyuese" = /datum/language/lingyuese,
