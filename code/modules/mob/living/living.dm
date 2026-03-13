@@ -1264,9 +1264,9 @@
 		combat_modifier -= 0.3
 	if(agg_grab)
 		if(!HAS_TRAIT(src, TRAIT_GARROTED))
-			combat_modifier -= 0.15
+			combat_modifier -= 0.3
 		else
-			combat_modifier -= 0.3 // garrote is always harder to escape than a regular grab
+			combat_modifier -= 0.15 // garrote is always harder to escape than a regular grab
 			if(!src.mind)
 				combat_modifier -= 0.3 // mindless victims are even less capable of escaping
 			if(HAS_TRAIT(L, TRAIT_BLACKBAGGER))
