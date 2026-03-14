@@ -2,6 +2,7 @@
 	name = "Guds Klør"
 	tutorial = "You are a Shaman of the Fjall, The Northern Empty. Your rituals call elder spirits and Gods through violence and ordinances which was forbidden even by your brothers"
 	outfit = /datum/outfit/job/roguetown/wretch/rogueshaman
+	class_select_category = CLASS_CAT_ROGUE
 	category_tags = list(CTAG_WRETCH)
 	maximum_possible_slots = 2
 	subclass_languages = list(/datum/language/gronnic)
