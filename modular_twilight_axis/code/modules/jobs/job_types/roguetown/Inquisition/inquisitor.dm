@@ -1,5 +1,6 @@
 /datum/job/roguetown/inquisitor/New()
 	job_traits += list(TRAIT_OUTLANDER)
+	job_subclasses += list(/datum/advclass/inquisitor/blackpowder)
 	. = ..()
 
 /datum/job/roguetown/inquisitor/after_spawn(mob/living/H, mob/M, latejoin = TRUE)
