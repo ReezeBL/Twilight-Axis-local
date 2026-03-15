@@ -695,6 +695,7 @@
 		/datum/sprite_accessory/hair/head/long_over_eye,
 		/datum/sprite_accessory/hair/head/longbangs,
 		/datum/sprite_accessory/hair/head/longfringe,
+		/datum/sprite_accessory/hair/head/long_twist,
 		/datum/sprite_accessory/hair/head/sidepartlongalt,
 		/datum/sprite_accessory/hair/head/megaeyebrows,
 		/datum/sprite_accessory/hair/head/messy,
