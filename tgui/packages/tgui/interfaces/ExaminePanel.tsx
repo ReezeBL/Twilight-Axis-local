@@ -59,7 +59,7 @@ export const ExaminePanel = (props) => {
       <Window.Content>
         <Stack vertical fill>
           {((img_gallery.length > 0 && !is_naked) || (img_gallery.length > 0 && is_naked && !nsfw_headshot)) && (
-          <Stack>
+          <Stack style={{ marginBottom: '4px' }}>
             <Stack.Item grow>
               <PageButton
               currentPage={currentPage}
