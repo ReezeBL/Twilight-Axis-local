@@ -512,6 +512,7 @@
 		/datum/sprite_accessory/hair/head/wavy,
 		/datum/sprite_accessory/hair/head/wavy_medium,
 		/datum/sprite_accessory/hair/head/charlotta,
+		/datum/sprite_accessory/hair/head/long_twist,
 		)
 
 /datum/customizer_choice/bodypart_feature/hair/head/humanoid/get_random_accessory(datum/customizer_entry/entry, datum/preferences/prefs)
@@ -695,7 +696,6 @@
 		/datum/sprite_accessory/hair/head/long_over_eye,
 		/datum/sprite_accessory/hair/head/longbangs,
 		/datum/sprite_accessory/hair/head/longfringe,
-		/datum/sprite_accessory/hair/head/long_twist,
 		/datum/sprite_accessory/hair/head/sidepartlongalt,
 		/datum/sprite_accessory/hair/head/megaeyebrows,
 		/datum/sprite_accessory/hair/head/messy,
